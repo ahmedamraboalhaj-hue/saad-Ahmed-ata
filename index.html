@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة حلقات الشيخ سيد أحمد عطا</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Google Fonts: Cairo and Amiri -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700&family=Amiri:wght@400;700&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="luxury-bg-overlay"></div>
+
+    <main class="app-container glass">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo-container">
+                <i class="fa-solid fa-book-quran gold-icon text-4xl"></i>
+                <div class="title-group">
+                    <h1>نظام إدارة الحلقات</h1>
+                    <p class="subtitle">الشيخ سيد أحمد عطا</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="view-students-btn" class="btn btn-secondary-outline"
+                    onclick="toggleSection('students-list-section')">
+                    <i class="fa-solid fa-users"></i> قائمة الطلاب
+                </button>
+                <button id="add-student-btn" class="btn btn-gold-outline">
+                    <i class="fa-solid fa-user-plus"></i> إضافة طالب جديد
+                </button>
+            </div>
+        </header>
+
+        <!-- Level Selection Dashboard -->
+        <section id="grade-dashboard" class="grade-grid">
+            <div class="grade-card glass-gold" onclick="setDashboardFilter('الابتدائي')">
+                <i class="fa-solid fa-child"></i>
+                <span>المرحلة الابتدائية</span>
+            </div>
+            <div class="grade-card glass-emerald" onclick="setDashboardFilter('الإعدادي')">
+                <i class="fa-solid fa-user-graduate"></i>
+                <span>المرحلة الإعدادية</span>
+            </div>
+            <div class="grade-card glass-gold" onclick="setDashboardFilter('الثانوي')">
+                <i class="fa-solid fa-book-open-reader"></i>
+                <span>المرحلة الثانوية</span>
+            </div>
+        </section>
+
+        <!-- Top Achievers (Motivation) -->
+        <section id="achievers-section" class="achievers-section glass-light hidden">
+            <h3><i class="fa-solid fa-trophy gold-icon"></i> لوحة المتفوقين (ختام السور)</h3>
+            <div id="achievers-list" class="achievers-list"></div>
+        </section>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-filters">
+                <div class="filter-group">
+                    <label>المرحلة:</label>
+                    <select id="filter-level" onchange="applyFilters()">
+                        <option value="الكل">الكل</option>
+                        <option value="الابتدائي">الابتدائي</option>
+                        <option value="الإعدادي">الإعدادي</option>
+                        <option value="الثانوي">الثانوي</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>النوع:</label>
+                    <select id="filter-gender" onchange="applyFilters()">
+                        <option value="الكل">الكل</option>
+                        <option value="ذكر">بنين</option>
+                        <option value="أنثى">بنات</option>
+                    </select>
+                </div>
+            </div>
+            <div class="search-box glass-light">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="student-search" placeholder="ابحث باسم الطالب (مثال: أحمد)..."
+                    autocomplete="off">
+            </div>
+            <div id="search-results" class="search-dropdown hidden glass"></div>
+        </section>
+
+        <!-- Core Recording Body (Hidden until student selected) -->
+        <section id="recording-interface" class="recording-body hidden">
+            <div class="student-card glass-premium">
+                <div class="card-header">
+                    <div>
+                        <h2 id="current-student-name">اسم الطالب المختـار</h2>
+                        <span id="current-student-gender" class="badge">ذكر</span>
+                        <span id="current-student-level" class="badge">الصف الدراسي</span>
+                    </div>
+                    <div class="header-actions">
+                        <a id="send-report-btn" class="btn btn-emerald-outline" target="_blank">
+                            <i class="fa-brands fa-whatsapp"></i> إرسال تقرير للبيانات
+                        </a>
+                    </div>
+                </div>
+
+                <div class="last-session-info">
+                    <p>آخر حضور: <span id="last-session-date">01/01/2026</span></p>
+                    <p>جوال ولي الأمر: <span id="current-guardian-phone">--</span></p>
+                </div>
+
+                <!-- Attendance Toggle -->
+                <div class="attendance-toggle-container">
+                    <label>حالة حضور اليوم:</label>
+                    <div class="toggle-group">
+                        <button id="toggle-present" class="toggle-btn active" onclick="setAttendance('present')">حضر
+                            ✅</button>
+                        <button id="toggle-absent" class="toggle-btn" onclick="setAttendance('absent')">غاب ❌</button>
+                    </div>
+                </div>
+
+                <div class="recording-inputs grid">
+                    <!-- New Recitation (Al-Lawh) -->
+                    <div class="input-group glass-input">
+                        <h3><i class="fa-solid fa-feather"></i> اللوح (الجديد)</h3>
+                        <div class="quick-selectors">
+                            <select id="lawh-surah" class="quran-select">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <div class="aya-range">
+                                <input type="number" id="lawh-aya-from" placeholder="من آية">
+                                <span>إلى</span>
+                                <input type="number" id="lawh-aya-to" placeholder="إلى آية">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consolidation (Al-Tathbit) -->
+                    <div class="input-group glass-input">
+                        <h3><i class="fa-solid fa-anchor"></i> التثبيت (المراجعة القريبة)</h3>
+                        <div class="quick-selectors">
+                            <div class="range-row">
+                                <label>من:</label>
+                                <select id="tathbit-surah-from" class="quran-select"></select>
+                                <input type="number" id="tathbit-aya-from" placeholder="آية">
+                            </div>
+                            <div class="range-row">
+                                <label>إلى:</label>
+                                <select id="tathbit-surah-to" class="quran-select"></select>
+                                <input type="number" id="tathbit-aya-to" placeholder="آية">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Past (Al-Madi) -->
+                    <div class="input-group glass-input">
+                        <h3><i class="fa-solid fa-reply-all"></i> الماضي (المراجعة البعيدة)</h3>
+                        <div class="quick-selectors">
+                            <div class="range-row">
+                                <label>من:</label>
+                                <select id="madi-surah-from" class="quran-select"></select>
+                                <input type="number" id="madi-aya-from" placeholder="آية">
+                            </div>
+                            <div class="range-row">
+                                <label>إلى:</label>
+                                <select id="madi-surah-to" class="quran-select"></select>
+                                <input type="number" id="madi-aya-to" placeholder="آية">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-footer">
+                    <button id="save-session-btn" class="btn btn-save pulse">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> حفظ التسميع والحضور
+                    </button>
+                    <button id="clear-selection-btn" class="btn btn-cancel">
+                        <i class="fa-solid fa-xmark"></i> إلغاء
+                    </button>
+                </div>
+            </div>
+        </section>
+        <!-- Stats Overview (Initial view) -->
+        <section id="initial-stats" class="stats-overview">
+            <div class="stat-card glass-gold">
+                <i class="fa-solid fa-users"></i>
+                <div class="stat-val">0</div>
+                <div class="stat-label">إجمالي الطلاب</div>
+            </div>
+            <div class="stat-card glass-emerald">
+                <i class="fa-solid fa-calendar-check"></i>
+                <div class="stat-val">0</div>
+                <div class="stat-label">حضور اليوم</div>
+            </div>
+        </section>
+
+        <!-- Students List Section (New Feature) -->
+        <section id="students-list-section" class="students-list-section hidden">
+            <div class="section-header">
+                <h2><i class="fa-solid fa-users-viewfinder"></i> عرض الطلاب حسب الفئة</h2>
+                <button class="btn btn-cancel btn-sm" onclick="toggleSection('main-dashboard')">
+                    <i class="fa-solid fa-arrow-right"></i> عودة
+                </button>
+            </div>
+
+            <div class="filter-dashboard glass-light">
+                <div class="filter-item">
+                    <label>المرحلة الدراسية:</label>
+                    <select id="list-filter-stage" onchange="updateYearOptions(); filterStudentsList()">
+                        <option value="الكل">الكل</option>
+                        <option value="الابتدائي">المرحلة الابتدائية</option>
+                        <option value="الإعدادي">المرحلة الإعدادية</option>
+                        <option value="الثانوي">المرحلة الثانوية</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>الصف الدراسي:</label>
+                    <select id="list-filter-year" onchange="filterStudentsList()">
+                        <option value="الكل">الكل</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>الجنس:</label>
+                    <div class="gender-switch">
+                        <button class="gender-btn active" data-gender="الكل"
+                            onclick="setListGender('الكل')">الكل</button>
+                        <button class="gender-btn" data-gender="ذكر" onclick="setListGender('ذكر')">بنين</button>
+                        <button class="gender-btn" data-gender="أنثى" onclick="setListGender('أنثى')">بنات</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="students-table-container" class="students-table-container glass">
+                <!-- Students will be rendered here -->
+                <div class="empty-state">
+                    <i class="fa-solid fa-user-slash"></i>
+                    <p>اختر الفلاتر أعلاه لعرض الطلاب</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <div id="add-student-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-premium">
+            <h2>إضافة طالب جديد</h2>
+            <form id="add-student-form">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>الاسم بالكامل</label>
+                        <input type="text" id="new-std-name" placeholder="أدخل اسم الطالب رباعياً..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>الصف الدراسي</label>
+                        <select id="new-std-level" required>
+                            <optgroup label="المرحلة الابتدائية">
+                                <option value="أول ابتدائي">أول ابتدائي</option>
+                                <option value="ثاني ابتدائي">ثاني ابتدائي</option>
+                                <option value="ثالث ابتدائي">ثالث ابتدائي</option>
+                                <option value="رابع ابتدائي">رابع ابتدائي</option>
+                                <option value="خامس ابتدائي">خامس ابتدائي</option>
+                                <option value="سادس ابتدائي">سادس ابتدائي</option>
+                            </optgroup>
+                            <optgroup label="المرحلة الإعدادية">
+                                <option value="أول إعدادي">أول إعدادي</option>
+                                <option value="ثاني إعدادي">ثاني إعدادي</option>
+                                <option value="ثالث إعدادي">ثالث إعدادي</option>
+                            </optgroup>
+                            <optgroup label="المرحلة الثانوية">
+                                <option value="أول ثانوي">أول ثانوي</option>
+                                <option value="ثاني ثانوي">ثاني ثانوي</option>
+                                <option value="ثالث ثانوي">ثالث ثانوي</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الجنس</label>
+                        <select id="new-std-gender" required>
+                            <option value="ذكر">ذكر</option>
+                            <option value="أنثى">أنثى</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>السورة الحالية</label>
+                        <select id="new-std-surah" class="quran-select" required>
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم جوال ولي الأمر (واتساب)</label>
+                        <input type="tel" id="new-std-phone" placeholder="05xxxxxxxx" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-save">إضافة الطالب</button>
+                    <button type="button" id="close-modal" class="btn btn-cancel">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts: Loaded sequentially to avoid module/CORS issues on local files -->
+    <script src="quran-data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
