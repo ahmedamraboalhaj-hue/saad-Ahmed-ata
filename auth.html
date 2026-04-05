@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - نظام إدارة حلقات القرآن</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Face-API.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <style>
+        .auth-container {
+            width: 100%;
+            max-width: 450px;
+            margin: 50px auto;
+            padding: 40px;
+            border-radius: 24px;
+            animation: fadeIn 0.6s ease-out;
+        }
+        .auth-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .auth-logo i {
+            font-size: 3.5rem;
+            color: var(--primary-blue);
+            margin-bottom: 15px;
+        }
+        .auth-tabs {
+            display: flex;
+            background: #F1F5F9;
+            padding: 5px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 700;
+            border-radius: 8px;
+            transition: all 0.3s;
+            color: var(--text-muted);
+        }
+        .auth-tab.active {
+            background: white;
+            color: var(--primary-blue);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .auth-footer {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="luxury-bg-overlay"></div>
+
+    <main class="auth-container glass">
+        <div class="auth-logo">
+            <i class="fa-solid fa-book-quran"></i>
+            <h2>نظام إدارة الحلقات</h2>
+            <p class="subtitle">سجل دخولك لإدارة مكتبك</p>
+        </div>
+
+        <div class="auth-tabs" id="auth-tabs">
+            <div id="tab-register" class="auth-tab active" data-tab="register">إنشاء مكتب جديد</div>
+            <div id="tab-login" class="auth-tab" data-tab="login">تسجيل الدخول</div>
+            <div id="tab-biometric" class="auth-tab" data-tab="biometric">بصمة الوجه</div>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="auth-form hidden">
+            <div class="form-group">
+                <label>رقم الهاتف</label>
+                <input type="tel" id="login-phone" placeholder="05xxxxxxxx" required>
+            </div>
+            <div class="form-group">
+                <label>كلمة المرور</label>
+                <input type="password" id="login-password" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn btn-gold-outline" style="width: 100%;">
+                <span class="btn-text">دخول بالنظام التقليدي</span>
+                <div class="loading-spinner"></div>
+            </button>
+        </form>
+
+        <!-- Biometric Login Section -->
+        <div id="biometric-section" class="auth-form hidden">
+            <div class="video-container glass" style="position: relative; overflow: hidden; border-radius: 15px; background: #000;">
+                <video id="face-video" width="100%" height="auto" autoplay muted style="transform: scaleX(-1);"></video>
+                <div id="scan-overlay" style="position: absolute; top:0; left:0; width:100%; height:100%; border: 2px solid var(--primary-blue); opacity: 0.5; pointer-events: none;"></div>
+            </div>
+            <p id="biometric-status" style="text-align: center; font-weight: 700; color: var(--primary-blue);">جاري تحضير الكاميرا...</p>
+            <button id="start-biometric-btn" class="btn btn-gold-outline" style="width: 100%;">
+                <i class="fa-solid fa-face-viewfinder"></i> ابدأ الفحص السريع
+            </button>
+        </div>
+
+        <!-- Register Form (Visible by default) -->
+        <form id="register-form" class="auth-form">
+            <div class="form-group">
+                <label>اسم المكتب / الجمعية</label>
+                <input type="text" id="reg-office-name" placeholder="مثلاً: مجمع التوحيد" required>
+            </div>
+            <div class="form-group">
+                <label>اسم الشيخ المحفظ</label>
+                <input type="text" id="reg-sheikh-name" placeholder="الاسم الكامل للشيخ" required>
+            </div>
+            <div class="form-group">
+                <label>رقم هاتف المكتب (سيستخدم للدخول)</label>
+                <input type="tel" id="reg-phone" placeholder="05xxxxxxxx" required>
+            </div>
+            <div class="form-group">
+                <label>كلمة المرور</label>
+                <input type="password" id="reg-password" placeholder="••••••••" required>
+            </div>
+            
+            <div class="biometric-reg-zone glass-light" style="padding: 15px; border-radius: 12px; margin: 10px 0; border: 1px dashed var(--primary-blue);">
+                <p style="font-size: 0.85rem; margin-bottom: 10px; font-weight: 700;"><i class="fa-solid fa-camera"></i> تسجيل بصمة الوجه (اختياري)</p>
+                <div id="reg-face-preview" class="hidden">
+                    <video id="reg-video" width="100%" autoplay muted style="border-radius: 8px; transform: scaleX(-1);"></video>
+                </div>
+                <button type="button" id="capture-face-btn" class="btn btn-secondary-outline btn-sm" style="width: 100%;">
+                    تفعيل بصمة الوجه للجهاز
+                </button>
+                <input type="hidden" id="reg-face-descriptor">
+            </div>
+
+            <button type="submit" class="btn btn-gold-outline" style="width: 100%;">
+                <span class="btn-text">إنشاء الحساب</span>
+                <div class="loading-spinner"></div>
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>© 2026 جميع الحقوق محفوظة لنظام إدارة الحلقات</p>
+        </div>
+    </main>
+
+    <!-- UI Interaction Helper (Always works) -->
+    <script>
+        window.switchTab = (type) => {
+            console.log("Switching to tab:", type);
+            const tabs = ['login', 'biometric', 'register'];
+            tabs.forEach(t => {
+                const tabEl = document.getElementById(`tab-${t}`);
+                const formEl = document.getElementById(`${t === 'biometric' ? 'biometric-section' : t + '-form'}`);
+                if (tabEl) tabEl.classList.remove('active');
+                if (formEl) formEl.classList.add('hidden');
+            });
+
+            const activeTab = document.getElementById(`tab-${type}`);
+            const targetForm = document.getElementById(`${type === 'biometric' ? 'biometric-section' : type + '-form'}`);
+            
+            if (activeTab) activeTab.classList.add('active');
+            if (targetForm) targetForm.classList.remove('hidden');
+
+            if (type === 'biometric' && window.initBiometricLogin) {
+                window.initBiometricLogin();
+            }
+        };
+
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                window.switchTab(tab.getAttribute('data-tab'));
+            });
+        });
+    </script>
+
+    <!-- CORE LOGIC BUNDLE (Firebase + FaceLogic) -->
+    <script type="module">
+        // 1. Firebase Imports (Always from CDN to avoid relative paths)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // 2. Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGEHnD4MXQjWZTz5csZ8hAC72UvR1FX-U",
+            authDomain: "estebain-1906b.firebaseapp.com",
+            databaseURL: "https://estebain-1906b-default-rtdb.firebaseio.com",
+            projectId: "estebain-1906b",
+            storageBucket: "estebain-1906b.firebasestorage.app",
+            messagingSenderId: "32544885408",
+            appId: "1:32544885408:web:ad7160dca975a11d6157c5",
+            measurementId: "G-ZT4EFCQPZ7"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        // 3. INTERNAL HELPERS
+        const phoneToEmail = (phone) => {
+            const cleanPhone = phone.replace(/\D/g, '');
+            return `u${cleanPhone}@office.com`;
+        };
+
+        // 4. FACE LOGIC FUNCTIONS
+        const MODEL_URL = './models';
+        let modelsLoaded = false;
+
+        async function loadFaceModels() {
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                modelsLoaded = true;
+                console.log("AI Models Ready.");
+            } catch (err) { console.error("Models failed:", err); }
+        }
+
+        async function startVideo(videoElement) {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+            videoElement.srcObject = stream;
+            return stream;
+        }
+
+        async function getFaceDescriptor(videoElement) {
+            const detection = await faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+            if (!detection) throw new Error("لم يتم اكتشاف وجه.");
+            return Array.from(detection.descriptor);
+        }
+
+        function findBestMatch(currentDescriptor, storedUsers, threshold = 0.6) {
+            let bestMatch = null;
+            let minDistance = threshold;
+            storedUsers.forEach(user => {
+                const distance = faceapi.euclideanDistance(currentDescriptor, new Float32Array(user.faceDescriptor));
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    bestMatch = user.officeId;
+                }
+            });
+            return bestMatch;
+        }
+
+        // 5. BOOTSTRAP
+        loadFaceModels();
+
+        // 6. FORM HANDLERS
+        window.initBiometricLogin = async function() {
+            const video = document.getElementById('face-video');
+            const status = document.getElementById('biometric-status');
+            const btn = document.getElementById('start-biometric-btn');
+            status.textContent = "يرجى النظر للكاميرا...";
+            try {
+                const stream = await startVideo(video);
+                btn.onclick = async () => {
+                    btn.disabled = true;
+                    status.textContent = "جاري التعرف...";
+                    try {
+                        const snap = await get(ref(database, 'offices'));
+                        if (!snap.exists()) throw new Error("لا توجد مكاتب.");
+                        const currentDescriptor = await getFaceDescriptor(video);
+                        const offices = snap.val();
+                        const list = Object.keys(offices).map(id => ({ officeId: id, faceDescriptor: offices[id].faceDescriptor })).filter(o => o.faceDescriptor);
+                        const match = findBestMatch(currentDescriptor, list);
+                        if (match) {
+                            localStorage.setItem('userOfficeId', match);
+                            localStorage.setItem('officeName', offices[match].name);
+                            localStorage.setItem('sheikhName', offices[match].sheikhName);
+                            window.location.href = 'index.html';
+                        } else { throw new Error("لم يتم التعرف."); }
+                    } catch (err) { status.textContent = err.message; btn.disabled = false; }
+                };
+            } catch (err) { status.textContent = err.message; }
+        };
+
+        document.getElementById('register-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            const officeData = {
+                name: document.getElementById('reg-office-name').value,
+                sheikhName: document.getElementById('reg-sheikh-name').value,
+                phone: document.getElementById('reg-phone').value
+            };
+            const phone = officeData.phone;
+            const pass = document.getElementById('reg-password').value;
+            const faceRaw = document.getElementById('reg-face-descriptor').value;
+            const email = phoneToEmail(phone);
+
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, email, pass);
+                const uid = cred.user.uid;
+                const dbData = { ...officeData, email, officeId: uid, createdAt: new Date().toISOString() };
+                if (faceRaw) dbData.faceDescriptor = JSON.parse(faceRaw);
+                await set(ref(database, 'offices/' + uid), dbData);
+                localStorage.setItem('userOfficeId', uid);
+                localStorage.setItem('officeName', dbData.name);
+                localStorage.setItem('sheikhName', dbData.sheikhName);
+                window.location.href = 'index.html';
+            } catch (err) { alert("خطأ: " + err.message); btn.disabled = false; }
+        };
+
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const phone = document.getElementById('login-phone').value;
+            const pass = document.getElementById('login-password').value;
+            const email = phoneToEmail(phone);
+            try {
+                const cred = await signInWithEmailAndPassword(auth, email, pass);
+                const uid = cred.user.uid;
+                const snap = await get(ref(database, 'offices/' + uid));
+                if (snap.exists()) {
+                    const data = snap.val();
+                    localStorage.setItem('userOfficeId', uid);
+                    localStorage.setItem('officeName', data.name);
+                    localStorage.setItem('sheikhName', data.sheikhName);
+                    window.location.href = 'index.html';
+                }
+            } catch (err) { alert("خطأ: " + err.message); }
+        };
+
+        document.getElementById('capture-face-btn').onclick = async (e) => {
+            const video = document.getElementById('reg-video');
+            const preview = document.getElementById('reg-face-preview');
+            const btn = e.target;
+            try {
+                if (!modelsLoaded) throw new Error("جاري تحميل الموديلات...");
+                preview.classList.remove('hidden');
+                btn.textContent = "جاري الفحص...";
+                btn.disabled = true;
+                const stream = await startVideo(video);
+                setTimeout(async () => {
+                    const desc = await getFaceDescriptor(video);
+                    document.getElementById('reg-face-descriptor').value = JSON.stringify(desc);
+                    btn.textContent = "تم التقاط البصمة ✅";
+                    btn.style.background = "#D1FAE5";
+                    stream.getTracks().forEach(t => t.stop());
+                    preview.classList.add('hidden');
+                }, 2000);
+            } catch (err) { alert(err.message); btn.disabled = false; }
+        };
+    </script>
+</body>
+</html>

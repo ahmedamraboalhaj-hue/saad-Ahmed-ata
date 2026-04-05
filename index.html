@@ -14,6 +14,12 @@
 </head>
 
 <body>
+    <script type="module">
+        import { checkAuth } from './auth.js';
+        checkAuth(true); // Ensure user is logged in
+    </script>
+
+
     <div class="luxury-bg-overlay"></div>
 
     <main class="app-container glass">
@@ -23,10 +29,12 @@
                 <i class="fa-solid fa-book-quran gold-icon text-4xl"></i>
                 <div class="title-group">
                     <h1>نظام إدارة الحلقات</h1>
-                    <p class="subtitle">الشيخ سيد أحمد عطا</p>
+                    <p class="subtitle">جاري تحميل بيانات المكتب...</p>
                 </div>
             </div>
-            <div class="header-actions">
+                <button id="logout-btn" class="btn btn-cancel btn-sm">
+                    <i class="fa-solid fa-sign-out-alt"></i> خروج
+                </button>
                 <button id="view-students-btn" class="btn btn-secondary-outline"
                     onclick="toggleSection('students-list-section')">
                     <i class="fa-solid fa-users"></i> قائمة الطلاب
@@ -34,7 +42,7 @@
                 <button id="add-student-btn" class="btn btn-gold-outline">
                     <i class="fa-solid fa-user-plus"></i> إضافة طالب جديد
                 </button>
-            </div>
+
         </header>
 
         <!-- Level Selection Dashboard -->
@@ -299,9 +307,14 @@
         </div>
     </div>
 
-    <!-- Scripts: Loaded sequentially to avoid module/CORS issues on local files -->
+    <!-- Scripts -->
     <script src="quran-data.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
+    <script type="module">
+        import { logout } from './auth.js';
+        document.getElementById('logout-btn').onclick = logout;
+    </script>
+
 </body>
 
 </html>

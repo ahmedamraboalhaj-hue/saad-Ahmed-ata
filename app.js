@@ -1,17 +1,58 @@
-// Quran Management System - Sheikh Sayed Ahmed Atta
-// Core Logic Optimized for Stability
+// Quran Management System - Multi-Tenant Firebase Version
+// Core Logic Optimized for Multi-Tenancy
+
+import { database, auth } from './firebase-config.js';
+import { 
+    ref, 
+    onValue, 
+    push, 
+    set, 
+    update,
+    query, 
+    orderByChild, 
+    equalTo 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 let students = [];
 let currentStudent = null;
-let currentAttendanceStatus = 'present'; // global state for toggle
+let currentAttendanceStatus = 'present';
+let userOfficeId = localStorage.getItem('userOfficeId');
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
-    initQuranSelects();
-    loadStudents();
-    setupEventListeners();
-    console.log("System initialized successfully.");
+    // Wait for auth to be ready if no officeId in local
+    if (!userOfficeId) {
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                userOfficeId = user.uid;
+                localStorage.setItem('userOfficeId', user.uid);
+                initApp();
+            }
+        });
+    } else {
+        initApp();
+    }
 });
+
+function initApp() {
+    updateUIBranding();
+    initQuranSelects();
+    loadStudentsFromFirebase();
+    setupEventListeners();
+    console.log("System initialized for Office:", userOfficeId);
+}
+
+function updateUIBranding() {
+    const officeName = localStorage.getItem('officeName') || "مكتب تحفيظ القرآن";
+    const sheikhName = localStorage.getItem('sheikhName') || "الشيخ المحفظ";
+    
+    // Update the main header title and subtitle
+    const mainTitle = document.querySelector('.title-group h1');
+    const subtitle = document.querySelector('.subtitle');
+    
+    if (mainTitle) mainTitle.textContent = `نظام إدارة ${officeName}`;
+    if (subtitle) subtitle.textContent = `بإشراف فضيلة ${sheikhName}`;
+}
 
 function initQuranSelects() {
     if (typeof quranData === 'undefined') {
@@ -25,7 +66,7 @@ function initQuranSelects() {
     const selectorIds = [
         'lawh-surah', 'new-std-surah', 
         'tathbit-surah-from', 'tathbit-surah-to', 
-        'madi-surah-from', 'madi-surah-to'
+        'madi-surah-from', 'madi-aya-from', 'madi-surah-to', 'madi-aya-to'
     ];
 
     selectorIds.forEach(id => {
@@ -49,12 +90,12 @@ function setupEventListeners() {
     // Search logic
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            if (query.length < 1) {
+            const searchQuery = e.target.value.toLowerCase();
+            if (searchQuery.length < 1) {
                 if (searchResults) searchResults.classList.add('hidden');
                 return;
             }
-            filterStudents(query);
+            filterStudents(searchQuery);
         });
     }
 
@@ -75,9 +116,10 @@ function setupEventListeners() {
                 level: document.getElementById('new-std-level').value,
                 gender: document.getElementById('new-std-gender').value,
                 currentSurah: document.getElementById('new-std-surah').value,
-                phone: document.getElementById('new-std-phone').value
+                phone: document.getElementById('new-std-phone').value,
+                officeId: userOfficeId // Associate with office
             };
-            addNewStudent(data);
+            addNewStudentToFirebase(data);
         };
     }
 
@@ -113,36 +155,58 @@ function setupEventListeners() {
     });
 }
 
-// --- DATA ACCESS ---
-function loadStudents() {
-    const localData = localStorage.getItem('quran_students');
-    if (localData) {
-        try {
-            students = JSON.parse(localData);
-        } catch (e) {
-            console.error("Error parsing local data", e);
-            students = [];
+// --- FIREBASE DATA ACCESS ---
+function loadStudentsFromFirebase() {
+    if (!userOfficeId) return;
+
+    // Filter by officeId for multi-tenancy
+    const studentsRef = ref(database, 'students');
+    const filteredQuery = query(studentsRef, orderByChild('officeId'), equalTo(userOfficeId));
+
+    onValue(filteredQuery, (snapshot) => {
+        const data = snapshot.val();
+        students = [];
+        if (data) {
+            Object.keys(data).forEach(id => {
+                students.push({ id, ...data[id] });
+            });
         }
-    } else {
-        students = [
-            { id: 1, name: "عبدالرحمن محمد", level: "المستوى الأول", gender: "ذكر", phone: "0500000000", lawh: { surah: 2, from: 1, to: 10 }, last_session: "2026-03-20" },
-            { id: 2, name: "أحمد علي", level: "المستوى الثاني", gender: "ذكر", phone: "0511111111", lawh: { surah: 18, from: 1, to: 5 }, last_session: "2026-03-19" }
-        ];
-        saveToLocal();
-    }
-    updateStats();
+        updateStats();
+        console.log(`Loaded ${students.length} students for office ${userOfficeId}`);
+    });
 }
 
-function saveToLocal() {
-    localStorage.setItem('quran_students', JSON.stringify(students));
-    updateStats();
+function addNewStudentToFirebase(data) {
+    const studentsRef = ref(database, 'students');
+    const newStudentRef = push(studentsRef);
+    
+    set(newStudentRef, {
+        ...data,
+        createdAt: new Date().toISOString(),
+        lawh: {},
+        tathbit: {},
+        madi: {},
+        last_session: ""
+    }).then(() => {
+        document.getElementById('add-student-modal').classList.add('hidden');
+        document.getElementById('add-student-form').reset();
+        alert('تمت إضافة الطالب بنجاح');
+    }).catch(err => {
+        console.error("Error adding student:", err);
+        alert("خطأ في الإضافة: " + err.message);
+    });
 }
 
 function updateStats() {
     const totalCount = students.length;
     const statVals = document.querySelectorAll('.stat-val');
     if (statVals[0]) statVals[0].textContent = totalCount;
-    if (statVals[1]) statVals[1].textContent = Math.floor(totalCount * 0.8); // Dummy attendance
+    if (statVals[1]) {
+        // Simple logic for attendance: count today's sessions
+        const today = new Date().toLocaleDateString('ar-EG');
+        const presentToday = students.filter(s => s.last_session === today).length;
+        statVals[1].textContent = presentToday;
+    }
 }
 
 // --- SEARCH, FILTERS & SELECTION ---
@@ -152,11 +216,11 @@ window.setDashboardFilter = (stage) => {
 };
 
 window.applyFilters = () => {
-    const query = document.getElementById('student-search').value.toLowerCase();
-    filterStudents(query);
+    const searchQuery = document.getElementById('student-search').value.toLowerCase();
+    filterStudents(searchQuery);
 };
 
-function filterStudents(query) {
+function filterStudents(searchQuery) {
     const searchResults = document.getElementById('search-results');
     const stageFilter = document.getElementById('filter-level').value;
     const genderFilter = document.getElementById('filter-gender').value;
@@ -164,7 +228,7 @@ function filterStudents(query) {
     if (!searchResults) return;
 
     const matches = students.filter(s => {
-        const nameMatch = s.name.toLowerCase().includes(query);
+        const nameMatch = s.name.toLowerCase().includes(searchQuery);
         const stageMatch = stageFilter === 'الكل' || (s.level && s.level.includes(stageFilter));
         const genderMatch = genderFilter === 'الكل' || s.gender === genderFilter;
         return nameMatch && stageMatch && genderMatch;
@@ -187,7 +251,7 @@ function filterStudents(query) {
     }
 }
 
-// --- NEW FEATURE: STUDENTS LIST VIEW ---
+// --- STUDENTS LIST VIEW ---
 let listGenderFilter = 'الكل';
 
 window.toggleSection = (sectionId) => {
@@ -205,7 +269,6 @@ window.toggleSection = (sectionId) => {
     } else {
         dashboardIds.forEach(id => {
             const el = document.getElementById(id);
-            // Show only relevant initial state
             if (id === 'grade-dashboard' || id === 'search-section' || id === 'initial-stats') {
                 el.classList.remove('hidden');
             } else {
@@ -293,7 +356,7 @@ window.selectStudent = (id) => {
     if (!student) return;
 
     currentStudent = student;
-    setAttendance('present'); // Default to present on selection
+    setAttendance('present');
     const searchResults = document.getElementById('search-results');
     const searchInput = document.getElementById('student-search');
     if (searchResults) searchResults.classList.add('hidden');
@@ -306,7 +369,7 @@ window.selectStudent = (id) => {
     document.getElementById('current-guardian-phone').textContent = student.phone || '--';
     document.getElementById('last-session-date').textContent = student.last_session || 'لا يوجد';
 
-    // Set values
+    // Set values safely
     document.getElementById('lawh-surah').value = student.lawh?.surah || student.currentSurah || "";
     document.getElementById('lawh-aya-from').value = student.lawh?.from || "";
     document.getElementById('lawh-aya-to').value = student.lawh?.to || "";
@@ -325,18 +388,6 @@ window.selectStudent = (id) => {
     document.getElementById('recording-interface').classList.remove('hidden');
     updateWhatsAppLink();
 };
-
-function getRangeText(sFrom, aFrom, sTo, aTo) {
-    if (!sFrom) return "---";
-    const surahFrom = quranData.find(s => s.id == sFrom)?.name;
-    const surahTo = sTo ? quranData.find(s => s.id == sTo)?.name : null;
-    
-    if (!surahTo || sFrom === sTo) {
-        return `سورة ${surahFrom} ${aFrom && aTo ? `(من ${aFrom} إلى ${aTo})` : ''}`;
-    } else {
-        return `من ${surahFrom} (${aFrom || 1}) إلى ${surahTo} (${aTo || 'آخرها'})`;
-    }
-}
 
 window.setAttendance = (status) => {
     currentAttendanceStatus = status;
@@ -371,9 +422,9 @@ function updateWhatsAppLink() {
 
     if (currentAttendanceStatus === 'present') {
         lawh = getRangeText(document.getElementById('lawh-surah').value, 
-                        document.getElementById('lawh-aya-from').value, 
-                        document.getElementById('lawh-surah').value, 
-                        document.getElementById('lawh-aya-to').value);
+                         document.getElementById('lawh-aya-from').value, 
+                         document.getElementById('lawh-surah').value, 
+                         document.getElementById('lawh-aya-to').value);
 
         tathbit = getRangeText(document.getElementById('tathbit-surah-from').value,
                             document.getElementById('tathbit-aya-from').value,
@@ -409,61 +460,56 @@ function updateWhatsAppLink() {
     btn.href = `https://wa.me/${finalPhone}/?text=${encodeURIComponent(message)}`;
 }
 
-// --- ACTIONS ---
-function addNewStudent(data) {
-    const newStudent = { id: Date.now(), ...data, lawh: {}, tathbit: {}, madi: {}, last_session: "" };
-    students.push(newStudent);
-    saveToLocal();
-    document.getElementById('add-student-modal').classList.add('hidden');
-    document.getElementById('add-student-form').reset();
-    alert('تمت إضافة الطالب بنجاح');
+function getRangeText(sFrom, aFrom, sTo, aTo) {
+    if (!sFrom) return "---";
+    const surahFrom = quranData.find(s => s.id == sFrom)?.name;
+    const surahTo = sTo ? quranData.find(s => s.id == sTo)?.name : null;
+    
+    if (!surahTo || sFrom === sTo) {
+        return `سورة ${surahFrom} ${aFrom && aTo ? `(من ${aFrom} إلى ${aTo})` : ''}`;
+    } else {
+        return `من ${surahFrom} (${aFrom || 1}) إلى ${surahTo} (${aTo || 'آخرها'})`;
+    }
 }
 
 function saveCurrentSession() {
     if (!currentStudent) return;
 
-    currentStudent.lawh = { 
-        surah: parseInt(document.getElementById('lawh-surah').value), 
-        from: parseInt(document.getElementById('lawh-aya-from').value), 
-        to: parseInt(document.getElementById('lawh-aya-to').value) 
+    const sessionData = {
+        lawh: { 
+            surah: parseInt(document.getElementById('lawh-surah').value) || null, 
+            from: parseInt(document.getElementById('lawh-aya-from').value) || null, 
+            to: parseInt(document.getElementById('lawh-aya-to').value) || null 
+        },
+        tathbit: {
+            sFrom: parseInt(document.getElementById('tathbit-surah-from').value) || null,
+            aFrom: parseInt(document.getElementById('tathbit-aya-from').value) || null,
+            sTo: parseInt(document.getElementById('tathbit-surah-to').value) || null,
+            aTo: parseInt(document.getElementById('tathbit-aya-to').value) || null
+        },
+        madi: {
+            sFrom: parseInt(document.getElementById('madi-surah-from').value) || null,
+            aFrom: parseInt(document.getElementById('madi-aya-from').value) || null,
+            sTo: parseInt(document.getElementById('madi-surah-to').value) || null,
+            aTo: parseInt(document.getElementById('madi-aya-to').value) || null
+        },
+        last_session: new Date().toLocaleDateString('ar-EG'),
+        attendance: currentAttendanceStatus
     };
-    
-    currentStudent.tathbit = {
-        sFrom: parseInt(document.getElementById('tathbit-surah-from').value),
-        aFrom: parseInt(document.getElementById('tathbit-aya-from').value),
-        sTo: parseInt(document.getElementById('tathbit-surah-to').value),
-        aTo: parseInt(document.getElementById('tathbit-aya-to').value)
-    };
 
-    currentStudent.madi = {
-        sFrom: parseInt(document.getElementById('madi-surah-from').value),
-        aFrom: parseInt(document.getElementById('madi-aya-from').value),
-        sTo: parseInt(document.getElementById('madi-surah-to').value),
-        aTo: parseInt(document.getElementById('madi-aya-to').value)
-    };
-
-    currentStudent.last_session = new Date().toLocaleDateString('ar-EG');
-
-    // Completion Alert
-    const sId = currentStudent.lawh.surah;
-    if (sId) {
-        const surah = quranData.find(s => s.id === sId);
-        if (surah && currentStudent.lawh.to === surah.ayas) {
-            alert(`🎉 مبارك تم إتمام سورة ${surah.name}`);
-        }
-    }
-
-    const idx = students.findIndex(s => s.id == currentStudent.id);
-    students[idx] = currentStudent;
-    saveToLocal();
-
-    const btn = document.getElementById('save-session-btn');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '✅ تم الحفظ';
-    setTimeout(() => {
-        btn.innerHTML = oldText;
-        document.getElementById('recording-interface').classList.add('hidden');
-        document.getElementById('initial-stats').classList.remove('hidden');
-        currentStudent = null;
-    }, 1500);
+    // Update in Firebase
+    const studentRef = ref(database, `students/${currentStudent.id}`);
+    update(studentRef, sessionData).then(() => {
+        const btn = document.getElementById('save-session-btn');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = '✅ تم الحفظ';
+        setTimeout(() => {
+            btn.innerHTML = oldText;
+            document.getElementById('recording-interface').classList.add('hidden');
+            document.getElementById('initial-stats').classList.remove('hidden');
+            currentStudent = null;
+        }, 1500);
+    }).catch(err => {
+        alert("خطأ أثناء الحفظ: " + err.message);
+    });
 }
