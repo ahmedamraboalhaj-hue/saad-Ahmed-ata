@@ -207,15 +207,32 @@
             appId: "1:491693742476:web:d900827db8ffbd1fd95ea9",
             measurementId: "G-Z4HE0XHNER"
         };
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+        
+        let database;
+        try {
+            const app = initializeApp(firebaseConfig);
+            database = getDatabase(app);
+            console.log("Firebase Connected Successfully");
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+        }
 
-        // 3. FACE LOGIC FUNCTIONS
+        // 3. HELPERS
+        function normalizePhone(phone) {
+            if (!phone) return "";
+            let clean = phone.toString().replace(/\D/g, ''); 
+            if (clean.startsWith('20')) clean = clean.substring(2);
+            if (clean.startsWith('0')) clean = clean.substring(1);
+            return clean;
+        }
+
+        // 4. FACE LOGIC FUNCTIONS
         const MODEL_URL = './models';
         let modelsLoaded = false;
 
         async function loadFaceModels() {
             try {
+                if (typeof faceapi === 'undefined') return;
                 await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
                 await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
@@ -249,14 +266,109 @@
             return bestMatch;
         }
 
-        // 4. BOOTSTRAP
+        // 5. BOOTSTRAP
         loadFaceModels();
 
-        // 5. FORM HANDLERS (Simplistic Logic)
+        // 6. REGISTRATION HANDLER
+        const registerForm = document.getElementById('register-form');
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                console.log("Registering Office...");
+                const btn = e.target.querySelector('button[type="submit"]');
+                const spinner = btn.querySelector('.loading-spinner');
+                const btnText = btn.querySelector('.btn-text');
+
+                try {
+                    btn.disabled = true;
+                    if (spinner) spinner.style.display = 'block';
+                    if (btnText) btnText.textContent = 'جاري الحفظ...';
+
+                    const phone = document.getElementById('reg-phone').value;
+                    const officeId = normalizePhone(phone); 
+
+                    const officeData = {
+                        name: document.getElementById('reg-office-name').value,
+                        sheikhName: document.getElementById('reg-sheikh-name').value,
+                        phone: phone,
+                        password: document.getElementById('reg-password').value,
+                        officeId: officeId,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    const faceRaw = document.getElementById('reg-face-descriptor').value;
+                    if (faceRaw) officeData.faceDescriptor = JSON.parse(faceRaw);
+
+                    await set(ref(database, 'offices/' + officeId), officeData);
+                    
+                    localStorage.setItem('userOfficeId', officeId);
+                    localStorage.setItem('officeName', officeData.name);
+                    localStorage.setItem('sheikhName', officeData.sheikhName);
+                    
+                    window.location.href = 'index.html';
+                } catch (err) {
+                    console.error("Reg Error:", err);
+                    alert("عذراً، حدث خطأ: " + err.message);
+                    btn.disabled = false;
+                    if (spinner) spinner.style.display = 'none';
+                    if (btnText) btnText.textContent = 'إنشاء الحساب';
+                }
+            });
+        }
+
+        // 7. LOGIN HANDLER
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                console.log("Logging in...");
+                const btn = e.target.querySelector('button[type="submit"]');
+                const spinner = btn.querySelector('.loading-spinner');
+                const btnText = btn.querySelector('.btn-text');
+
+                try {
+                    btn.disabled = true;
+                    if (spinner) spinner.style.display = 'block';
+                    if (btnText) btnText.textContent = 'جاري الدخول...';
+
+                    const phone = document.getElementById('login-phone').value;
+                    const pass = document.getElementById('login-password').value;
+                    const officeId = normalizePhone(phone);
+
+                    const snap = await get(ref(database, 'offices/' + officeId));
+                    if (snap.exists()) {
+                        const data = snap.val();
+                        if (data.password === pass) {
+                            localStorage.setItem('userOfficeId', officeId);
+                            localStorage.setItem('officeName', data.name);
+                            localStorage.setItem('sheikhName', data.sheikhName);
+                            window.location.href = 'index.html';
+                        } else {
+                            alert("كلمة المرور غير صحيحة");
+                            btn.disabled = false;
+                        }
+                    } else {
+                        alert("لا يوجد مكتب مسجل بهذا الرقم");
+                        btn.disabled = false;
+                    }
+                } catch (err) {
+                    console.error("Login Error:", err);
+                    alert("خطأ في الاتصال: " + err.message);
+                    btn.disabled = false;
+                } finally {
+                    if (spinner) spinner.style.display = 'none';
+                    if (btnText) btnText.textContent = 'دخول بالنظام التقليدي';
+                }
+            });
+        }
+
+        // 7. BIOMETRIC HANDLER
         window.initBiometricLogin = async function() {
             const video = document.getElementById('face-video');
             const status = document.getElementById('biometric-status');
             const btn = document.getElementById('start-biometric-btn');
+            if(!video || !status || !btn) return;
+            
             status.textContent = "يرجى النظر للكاميرا...";
             try {
                 const stream = await startVideo(video);
@@ -286,82 +398,40 @@
             } catch (err) { status.textContent = err.message; }
         };
 
-        document.getElementById('register-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true;
-            
-            const phone = document.getElementById('reg-phone').value;
-            const officeId = phone.replace(/\D/g, ''); // Phone is ID
-
-            const officeData = {
-                name: document.getElementById('reg-office-name').value,
-                sheikhName: document.getElementById('reg-sheikh-name').value,
-                phone: phone,
-                password: document.getElementById('reg-password').value,
-                officeId: officeId,
-                createdAt: new Date().toISOString()
-            };
-
-            const faceRaw = document.getElementById('reg-face-descriptor').value;
-            if (faceRaw) officeData.faceDescriptor = JSON.parse(faceRaw);
-
-            try {
-                // Save directly to "Files" list
-                await set(ref(database, 'offices/' + officeId), officeData);
-                
-                localStorage.setItem('userOfficeId', officeId);
-                localStorage.setItem('officeName', officeData.name);
-                localStorage.setItem('sheikhName', officeData.sheikhName);
-                window.location.href = 'index.html';
-            } catch (err) { alert("خطأ: " + err.message); btn.disabled = false; }
-        };
-
-        document.getElementById('login-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const phone = document.getElementById('login-phone').value;
-            const pass = document.getElementById('login-password').value;
-            const officeId = phone.replace(/\D/g, '');
-
-            try {
-                const snap = await get(ref(database, 'offices/' + officeId));
-                if (snap.exists()) {
-                    const data = snap.val();
-                    // Just check the "stored" password field
-                    if (data.password === pass) {
-                        localStorage.setItem('userOfficeId', officeId);
-                        localStorage.setItem('officeName', data.name);
-                        localStorage.setItem('sheikhName', data.sheikhName);
-                        window.location.href = 'index.html';
-                    } else {
-                        alert("كلمة المرور غير صحيحة");
-                    }
-                } else {
-                    alert("لا يوجد مكتب مسجل بهذا الرقم");
+        // 8. FACE CAPTURE FOR REGISTRATION
+        const captureBtn = document.getElementById('capture-face-btn');
+        if (captureBtn) {
+            captureBtn.onclick = async (e) => {
+                const video = document.getElementById('reg-video');
+                const preview = document.getElementById('reg-face-preview');
+                const btn = e.target;
+                try {
+                    if (!modelsLoaded) throw new Error("جاري تحميل الموديلات... يرجى المحاولة بعد قليل");
+                    preview.classList.remove('hidden');
+                    btn.textContent = "جاري الفحص...";
+                    btn.disabled = true;
+                    const stream = await startVideo(video);
+                    setTimeout(async () => {
+                        try {
+                            const desc = await getFaceDescriptor(video);
+                            document.getElementById('reg-face-descriptor').value = JSON.stringify(desc);
+                            btn.textContent = "تم التقاط البصمة ✅";
+                            btn.style.background = "#D1FAE5";
+                            stream.getTracks().forEach(t => t.stop());
+                            preview.classList.add('hidden');
+                        } catch (e) {
+                            alert(e.message);
+                            btn.textContent = "إعادة المحاولة";
+                            btn.disabled = false;
+                        }
+                    }, 2000);
+                } catch (err) { 
+                    alert(err.message); 
+                    btn.disabled = false; 
                 }
-            } catch (err) { alert("خطأ: " + err.message); }
-        };
-
-        document.getElementById('capture-face-btn').onclick = async (e) => {
-            const video = document.getElementById('reg-video');
-            const preview = document.getElementById('reg-face-preview');
-            const btn = e.target;
-            try {
-                if (!modelsLoaded) throw new Error("جاري تحميل الموديلات...");
-                preview.classList.remove('hidden');
-                btn.textContent = "جاري الفحص...";
-                btn.disabled = true;
-                const stream = await startVideo(video);
-                setTimeout(async () => {
-                    const desc = await getFaceDescriptor(video);
-                    document.getElementById('reg-face-descriptor').value = JSON.stringify(desc);
-                    btn.textContent = "تم التقاط البصمة ✅";
-                    btn.style.background = "#D1FAE5";
-                    stream.getTracks().forEach(t => t.stop());
-                    preview.classList.add('hidden');
-                }, 2000);
-            } catch (err) { alert(err.message); btn.disabled = false; }
-        };
+            };
+        }
     </script>
 </body>
 </html>
+

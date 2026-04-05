@@ -1,4 +1,4 @@
-// Simplified Office Authentication (File-based Logic)
+// Normalized Office Authentication
 import { database } from './firebase-config.js';
 import { 
     ref, 
@@ -9,32 +9,37 @@ import {
 import { findBestMatch } from './face-logic.js';
 
 /**
- * Register a new Office (Saving it like a local file in Firebase)
- * @param {string} phone - Used as the unique "File Name"
- * @param {string} password 
- * @param {object} officeData { name, sheikhName, address }
+ * Normalize phone number to use as a unique ID
+ */
+export function normalizePhone(phone) {
+    if (!phone) return "";
+    let clean = phone.toString().replace(/\D/g, ''); 
+    if (clean.startsWith('20')) clean = clean.substring(2);
+    if (clean.startsWith('0')) clean = clean.substring(1);
+    return clean;
+}
+
+/**
+ * Register a new Office
  */
 export async function registerOffice(phone, password, officeData) {
     try {
-        const officeId = phone.replace(/\D/g, ''); // Use phone as the unique ID
+        const officeId = normalizePhone(phone);
 
-        // Check if "File" already exists
         const existing = await get(ref(database, 'offices/' + officeId));
         if (existing.exists()) {
             throw new Error("هذا المكتب مسجل بالفعل بهذا الرقم.");
         }
 
-        // 1. Save Office "File" in Realtime Database
         const dbData = {
             ...officeData,
-            password: password, // Saved simply as a field in the "file"
+            password: password,
             officeId: officeId,
             createdAt: new Date().toISOString()
         };
 
         await set(ref(database, 'offices/' + officeId), dbData);
 
-        // 2. Save to local state for immediate access
         localStorage.setItem('userOfficeId', officeId);
         localStorage.setItem('officeName', officeData.name);
         localStorage.setItem('sheikhName', officeData.sheikhName || "");
@@ -47,18 +52,15 @@ export async function registerOffice(phone, password, officeData) {
 }
 
 /**
- * Login (Checking the "File" content)
+ * Login
  */
 export async function loginOffice(phone, password) {
     try {
-        const officeId = phone.replace(/\D/g, '');
-        
-        // 1. Fetch the "File" for this office
+        const officeId = normalizePhone(phone);
         const snapshot = await get(ref(database, 'offices/' + officeId));
         
         if (snapshot.exists()) {
             const data = snapshot.val();
-            // 2. Compare the "Saved Password" in the file
             if (data.password === password) {
                 localStorage.setItem('userOfficeId', officeId);
                 localStorage.setItem('officeName', data.name);
@@ -77,7 +79,7 @@ export async function loginOffice(phone, password) {
 }
 
 /**
- * Logout (Clear local session only)
+ * Logout
  */
 export function logout() {
     localStorage.removeItem('userOfficeId');
@@ -87,11 +89,11 @@ export function logout() {
 }
 
 /**
- * Register with Face ID (Simple storage)
+ * Register with Face ID
  */
 export async function registerOfficeWithFace(phone, password, officeData, faceDescriptor) {
     try {
-        const officeId = phone.replace(/\D/g, '');
+        const officeId = normalizePhone(phone);
         const dbData = {
             ...officeData,
             password: password,
@@ -101,7 +103,6 @@ export async function registerOfficeWithFace(phone, password, officeData, faceDe
         };
 
         await set(ref(database, 'offices/' + officeId), dbData);
-
         localStorage.setItem('userOfficeId', officeId);
         localStorage.setItem('officeName', officeData.name);
         localStorage.setItem('sheikhName', officeData.sheikhName || "");
@@ -113,7 +114,7 @@ export async function registerOfficeWithFace(phone, password, officeData, faceDe
 }
 
 /**
- * Face ID Login (Searching through all "Files")
+ * Face ID Login
  */
 export async function loginWithFace(currentDescriptor) {
     try {
@@ -143,7 +144,7 @@ export async function loginWithFace(currentDescriptor) {
 }
 
 /**
- * Check Session (Simple redirect logic)
+ * Check Session
  */
 export function checkAuth(requireAuth = true) {
     const officeId = localStorage.getItem('userOfficeId');
