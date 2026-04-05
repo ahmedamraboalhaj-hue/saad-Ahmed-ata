@@ -1,14 +1,5 @@
-// Authentication Logic
-import { 
-    auth, 
-    database 
-} from './firebase-config.js';
-import { 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword, 
-    onAuthStateChanged,
-    signOut
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+// Simplified Office Authentication (File-based Logic)
+import { database } from './firebase-config.js';
 import { 
     ref, 
     set, 
@@ -18,37 +9,32 @@ import {
 import { findBestMatch } from './face-logic.js';
 
 /**
- * Helper to convert phone number to a Firebase-friendly email string
- * @param {string} phone 
- */
-const phoneToEmail = (phone) => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    return `u${cleanPhone}@office.com`;
-};
-
-/**
- * Register a new Office
- * @param {string} phone 
+ * Register a new Office (Saving it like a local file in Firebase)
+ * @param {string} phone - Used as the unique "File Name"
  * @param {string} password 
- * @param {object} officeData { name, owner, phone, address }
+ * @param {object} officeData { name, sheikhName, address }
  */
 export async function registerOffice(phone, password, officeData) {
     try {
-        const email = phoneToEmail(phone);
-        // 1. Create User in Firebase Auth
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        const officeId = user.uid; // UID as office_id for simplicity and security
+        const officeId = phone.replace(/\D/g, ''); // Use phone as the unique ID
 
-        // 2. Save Office Data in Realtime Database under offices/{office_id}
-        await set(ref(database, 'offices/' + officeId), {
+        // Check if "File" already exists
+        const existing = await get(ref(database, 'offices/' + officeId));
+        if (existing.exists()) {
+            throw new Error("هذا المكتب مسجل بالفعل بهذا الرقم.");
+        }
+
+        // 1. Save Office "File" in Realtime Database
+        const dbData = {
             ...officeData,
-            email: email,
-            createdAt: new Date().toISOString(),
-            officeId: officeId
-        });
+            password: password, // Saved simply as a field in the "file"
+            officeId: officeId,
+            createdAt: new Date().toISOString()
+        };
 
-        // 3. Save to localStorage for immediate use
+        await set(ref(database, 'offices/' + officeId), dbData);
+
+        // 2. Save to local state for immediate access
         localStorage.setItem('userOfficeId', officeId);
         localStorage.setItem('officeName', officeData.name);
         localStorage.setItem('sheikhName', officeData.sheikhName || "");
@@ -61,27 +47,28 @@ export async function registerOffice(phone, password, officeData) {
 }
 
 /**
- * Login for existing Office
- * @param {string} phone 
- * @param {string} password 
+ * Login (Checking the "File" content)
  */
 export async function loginOffice(phone, password) {
     try {
-        const email = phoneToEmail(phone);
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        const officeId = user.uid;
-
-        // Fetch office data to verify and store name
+        const officeId = phone.replace(/\D/g, '');
+        
+        // 1. Fetch the "File" for this office
         const snapshot = await get(ref(database, 'offices/' + officeId));
+        
         if (snapshot.exists()) {
             const data = snapshot.val();
-            localStorage.setItem('userOfficeId', officeId);
-            localStorage.setItem('officeName', data.name);
-            localStorage.setItem('sheikhName', data.sheikhName || "");
-            return { success: true, user: data };
+            // 2. Compare the "Saved Password" in the file
+            if (data.password === password) {
+                localStorage.setItem('userOfficeId', officeId);
+                localStorage.setItem('officeName', data.name);
+                localStorage.setItem('sheikhName', data.sheikhName || "");
+                return { success: true, user: data };
+            } else {
+                throw new Error("كلمة المرور غير صحيحة.");
+            }
         } else {
-            throw new Error("Office data not found!");
+            throw new Error("لا يوجد مكتب مسجل بهذا الرقم.");
         }
     } catch (error) {
         console.error("Login Error:", error);
@@ -90,42 +77,30 @@ export async function loginOffice(phone, password) {
 }
 
 /**
- * Logout
+ * Logout (Clear local session only)
  */
-export async function logout() {
-    try {
-        await signOut(auth);
-        localStorage.removeItem('userOfficeId');
-        localStorage.removeItem('officeName');
-        localStorage.removeItem('sheikhName');
-        window.location.href = 'auth.html';
-    } catch (error) {
-        console.error("Logout Error:", error);
-    }
+export function logout() {
+    localStorage.removeItem('userOfficeId');
+    localStorage.removeItem('officeName');
+    localStorage.removeItem('sheikhName');
+    window.location.href = 'auth.html';
 }
 
 /**
- * Register a new Office with Biometric Face ID
- * @param {string} phone 
- * @param {string} password 
- * @param {object} officeData { name, owner, phone, etc. }
- * @param {Array} faceDescriptor [128-float values]
+ * Register with Face ID (Simple storage)
  */
 export async function registerOfficeWithFace(phone, password, officeData, faceDescriptor) {
     try {
-        const email = phoneToEmail(phone);
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        const officeId = user.uid;
-
-        // Save office profile AND face descriptor
-        await set(ref(database, 'offices/' + officeId), {
+        const officeId = phone.replace(/\D/g, '');
+        const dbData = {
             ...officeData,
-            email: email,
+            password: password,
             officeId: officeId,
-            faceDescriptor: faceDescriptor, // Saved as array in Firebase
+            faceDescriptor: faceDescriptor,
             createdAt: new Date().toISOString()
-        });
+        };
+
+        await set(ref(database, 'offices/' + officeId), dbData);
 
         localStorage.setItem('userOfficeId', officeId);
         localStorage.setItem('officeName', officeData.name);
@@ -133,29 +108,24 @@ export async function registerOfficeWithFace(phone, password, officeData, faceDe
 
         return { success: true, officeId };
     } catch (error) {
-        console.error("Registration Error:", error);
         return { success: false, error: error.message };
     }
 }
 
 /**
- * Fast login via Face Recognition
+ * Face ID Login (Searching through all "Files")
  */
 export async function loginWithFace(currentDescriptor) {
     try {
-        // 1. Fetch all office records (in production, we'd use Firestore or a Cloud Function for scale)
         const snapshot = await get(ref(database, 'offices'));
-        if (!snapshot.exists()) throw new Error("لا توجد مكاتب مسجلة حالياً.");
+        if (!snapshot.exists()) throw new Error("لا توجد مكاتب.");
 
         const offices = snapshot.val();
         const officeList = Object.keys(offices).map(id => ({
             officeId: id,
-            faceDescriptor: offices[id].faceDescriptor,
-            name: offices[id].name,
-            sheikhName: offices[id].sheikhName
-        })).filter(o => o.faceDescriptor); // Only check those with face IDs
+            faceDescriptor: offices[id].faceDescriptor
+        })).filter(o => o.faceDescriptor);
 
-        // 2. Perform Euclidean identification
         const matchedOfficeId = findBestMatch(currentDescriptor, officeList);
 
         if (matchedOfficeId) {
@@ -165,32 +135,27 @@ export async function loginWithFace(currentDescriptor) {
             localStorage.setItem('sheikhName', matchedData.sheikhName || "");
             return { success: true, user: matchedData };
         } else {
-            throw new Error("لم يتم التعرف على الوجه. يرجى المحاولة مرة أخرى أو الدخول بكلمة المرور.");
+            throw new Error("لم يتم التعرف على الوجه.");
         }
     } catch (error) {
-        console.error("Biometric Login Error:", error);
         return { success: false, error: error.message };
     }
 }
 
 /**
- * Check User Auth and Redirect
+ * Check Session (Simple redirect logic)
  */
 export function checkAuth(requireAuth = true) {
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // User is signed in
-            if (!requireAuth && window.location.pathname.includes('auth.html')) {
-                window.location.href = 'index.html';
-            }
-            if (!localStorage.getItem('userOfficeId')) {
-                localStorage.setItem('userOfficeId', user.uid);
-            }
-        } else {
-            // User is signed out
-            if (requireAuth && !window.location.pathname.includes('auth.html')) {
-                window.location.href = 'auth.html';
-            }
+    const officeId = localStorage.getItem('userOfficeId');
+    const isAuthPage = window.location.pathname.includes('auth.html');
+
+    if (officeId) {
+        if (!requireAuth && isAuthPage) {
+            window.location.href = 'index.html';
         }
-    });
+    } else {
+        if (requireAuth && !isAuthPage) {
+            window.location.href = 'auth.html';
+        }
+    }
 }

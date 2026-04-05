@@ -192,9 +192,8 @@
 
     <!-- CORE LOGIC BUNDLE (Firebase + FaceLogic) -->
     <script type="module">
-        // 1. Firebase Imports (Always from CDN to avoid relative paths)
+        // 1. Firebase Imports (Realtime Database Only)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // 2. Firebase Configuration
@@ -209,16 +208,9 @@
             measurementId: "G-Z4HE0XHNER"
         };
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const database = getDatabase(app);
 
-        // 3. INTERNAL HELPERS
-        const phoneToEmail = (phone) => {
-            const cleanPhone = phone.replace(/\D/g, '');
-            return `u${cleanPhone}@office.com`;
-        };
-
-        // 4. FACE LOGIC FUNCTIONS
+        // 3. FACE LOGIC FUNCTIONS
         const MODEL_URL = './models';
         let modelsLoaded = false;
 
@@ -257,10 +249,10 @@
             return bestMatch;
         }
 
-        // 5. BOOTSTRAP
+        // 4. BOOTSTRAP
         loadFaceModels();
 
-        // 6. FORM HANDLERS
+        // 5. FORM HANDLERS (Simplistic Logic)
         window.initBiometricLogin = async function() {
             const video = document.getElementById('face-video');
             const status = document.getElementById('biometric-status');
@@ -270,18 +262,23 @@
                 const stream = await startVideo(video);
                 btn.onclick = async () => {
                     btn.disabled = true;
-                    status.textContent = "جاري التعرف...";
+                    status.textContent = "جاري التعرف وبحث الملفات...";
                     try {
                         const snap = await get(ref(database, 'offices'));
                         if (!snap.exists()) throw new Error("لا توجد مكاتب.");
                         const currentDescriptor = await getFaceDescriptor(video);
                         const offices = snap.val();
-                        const list = Object.keys(offices).map(id => ({ officeId: id, faceDescriptor: offices[id].faceDescriptor })).filter(o => o.faceDescriptor);
+                        const list = Object.keys(offices).map(id => ({ 
+                            officeId: id, 
+                            faceDescriptor: offices[id].faceDescriptor 
+                        })).filter(o => o.faceDescriptor);
+                        
                         const match = findBestMatch(currentDescriptor, list);
                         if (match) {
+                            const data = offices[match];
                             localStorage.setItem('userOfficeId', match);
-                            localStorage.setItem('officeName', offices[match].name);
-                            localStorage.setItem('sheikhName', offices[match].sheikhName);
+                            localStorage.setItem('officeName', data.name);
+                            localStorage.setItem('sheikhName', data.sheikhName);
                             window.location.href = 'index.html';
                         } else { throw new Error("لم يتم التعرف."); }
                     } catch (err) { status.textContent = err.message; btn.disabled = false; }
@@ -293,45 +290,54 @@
             e.preventDefault();
             const btn = e.target.querySelector('button');
             btn.disabled = true;
+            
+            const phone = document.getElementById('reg-phone').value;
+            const officeId = phone.replace(/\D/g, ''); // Phone is ID
+
             const officeData = {
                 name: document.getElementById('reg-office-name').value,
                 sheikhName: document.getElementById('reg-sheikh-name').value,
-                phone: document.getElementById('reg-phone').value
+                phone: phone,
+                password: document.getElementById('reg-password').value,
+                officeId: officeId,
+                createdAt: new Date().toISOString()
             };
-            const phone = officeData.phone;
-            const pass = document.getElementById('reg-password').value;
+
             const faceRaw = document.getElementById('reg-face-descriptor').value;
-            const email = phoneToEmail(phone);
+            if (faceRaw) officeData.faceDescriptor = JSON.parse(faceRaw);
 
             try {
-                const cred = await createUserWithEmailAndPassword(auth, email, pass);
-                const uid = cred.user.uid;
-                const dbData = { ...officeData, email, officeId: uid, createdAt: new Date().toISOString() };
-                if (faceRaw) dbData.faceDescriptor = JSON.parse(faceRaw);
-                await set(ref(database, 'offices/' + uid), dbData);
-                localStorage.setItem('userOfficeId', uid);
-                localStorage.setItem('officeName', dbData.name);
-                localStorage.setItem('sheikhName', dbData.sheikhName);
+                // Save directly to "Files" list
+                await set(ref(database, 'offices/' + officeId), officeData);
+                
+                localStorage.setItem('userOfficeId', officeId);
+                localStorage.setItem('officeName', officeData.name);
+                localStorage.setItem('sheikhName', officeData.sheikhName);
                 window.location.href = 'index.html';
             } catch (err) { alert("خطأ: " + err.message); btn.disabled = false; }
         };
 
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
             const phone = document.getElementById('login-phone').value;
             const pass = document.getElementById('login-password').value;
-            const email = phoneToEmail(phone);
+            const officeId = phone.replace(/\D/g, '');
+
             try {
-                const cred = await signInWithEmailAndPassword(auth, email, pass);
-                const uid = cred.user.uid;
-                const snap = await get(ref(database, 'offices/' + uid));
+                const snap = await get(ref(database, 'offices/' + officeId));
                 if (snap.exists()) {
                     const data = snap.val();
-                    localStorage.setItem('userOfficeId', uid);
-                    localStorage.setItem('officeName', data.name);
-                    localStorage.setItem('sheikhName', data.sheikhName);
-                    window.location.href = 'index.html';
+                    // Just check the "stored" password field
+                    if (data.password === pass) {
+                        localStorage.setItem('userOfficeId', officeId);
+                        localStorage.setItem('officeName', data.name);
+                        localStorage.setItem('sheikhName', data.sheikhName);
+                        window.location.href = 'index.html';
+                    } else {
+                        alert("كلمة المرور غير صحيحة");
+                    }
+                } else {
+                    alert("لا يوجد مكتب مسجل بهذا الرقم");
                 }
             } catch (err) { alert("خطأ: " + err.message); }
         };
