@@ -10,7 +10,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAOS3aA7JuXzBuCCZLIgu8kdbeMdCl_Ink",
     authDomain: "classqurqin.firebaseapp.com",
-    databaseURL: "https://classqurqin-default-rtdb.firebaseio.com",
+    databaseURL: "https://classqurqin-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "classqurqin",
     storageBucket: "classqurqin.firebasestorage.app",
     messagingSenderId: "491693742476",
