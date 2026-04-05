@@ -255,7 +255,7 @@ function filterStudents(searchQuery) {
 let listGenderFilter = 'الكل';
 
 window.toggleSection = (sectionId) => {
-    const dashboardIds = ['grade-dashboard', 'achievers-section', 'search-section', 'initial-stats', 'recording-interface'];
+    const dashboardIds = ['achievers-section', 'initial-stats', 'recording-interface'];
     const studentsListSection = document.getElementById('students-list-section');
 
     if (sectionId === 'students-list-section') {
@@ -269,10 +269,10 @@ window.toggleSection = (sectionId) => {
     } else {
         dashboardIds.forEach(id => {
             const el = document.getElementById(id);
-            if (id === 'grade-dashboard' || id === 'search-section' || id === 'initial-stats') {
-                el.classList.remove('hidden');
+            if (id === 'initial-stats') {
+                if (el) el.classList.remove('hidden');
             } else {
-                el.classList.add('hidden');
+                if (el) el.classList.add('hidden');
             }
         });
         studentsListSection.classList.add('hidden');
@@ -314,13 +314,15 @@ window.setListGender = (gender) => {
 window.filterStudentsList = () => {
     const stage = document.getElementById('list-filter-stage').value;
     const year = document.getElementById('list-filter-year').value;
+    const searchQuery = document.getElementById('list-search-input')?.value.toLowerCase() || '';
     const container = document.getElementById('students-table-container');
 
     const filtered = students.filter(s => {
+        const nameMatch = s.name.toLowerCase().includes(searchQuery);
         const stageMatch = stage === 'الكل' || (s.level && s.level.includes(stage));
         const yearMatch = year === 'الكل' || s.level === year;
         const genderMatch = listGenderFilter === 'الكل' || s.gender === listGenderFilter;
-        return stageMatch && yearMatch && genderMatch;
+        return nameMatch && stageMatch && yearMatch && genderMatch;
     });
 
     if (filtered.length > 0) {

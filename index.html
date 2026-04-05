@@ -45,55 +45,10 @@
 
         </header>
 
-        <!-- Level Selection Dashboard -->
-        <section id="grade-dashboard" class="grade-grid">
-            <div class="grade-card glass-gold" onclick="setDashboardFilter('الابتدائي')">
-                <i class="fa-solid fa-child"></i>
-                <span>المرحلة الابتدائية</span>
-            </div>
-            <div class="grade-card glass-emerald" onclick="setDashboardFilter('الإعدادي')">
-                <i class="fa-solid fa-user-graduate"></i>
-                <span>المرحلة الإعدادية</span>
-            </div>
-            <div class="grade-card glass-gold" onclick="setDashboardFilter('الثانوي')">
-                <i class="fa-solid fa-book-open-reader"></i>
-                <span>المرحلة الثانوية</span>
-            </div>
-        </section>
-
         <!-- Top Achievers (Motivation) -->
         <section id="achievers-section" class="achievers-section glass-light hidden">
             <h3><i class="fa-solid fa-trophy gold-icon"></i> لوحة المتفوقين (ختام السور)</h3>
             <div id="achievers-list" class="achievers-list"></div>
-        </section>
-
-        <!-- Search Section -->
-        <section class="search-section">
-            <div class="search-filters">
-                <div class="filter-group">
-                    <label>المرحلة:</label>
-                    <select id="filter-level" onchange="applyFilters()">
-                        <option value="الكل">الكل</option>
-                        <option value="الابتدائي">الابتدائي</option>
-                        <option value="الإعدادي">الإعدادي</option>
-                        <option value="الثانوي">الثانوي</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>النوع:</label>
-                    <select id="filter-gender" onchange="applyFilters()">
-                        <option value="الكل">الكل</option>
-                        <option value="ذكر">بنين</option>
-                        <option value="أنثى">بنات</option>
-                    </select>
-                </div>
-            </div>
-            <div class="search-box glass-light">
-                <i class="fa-solid fa-search"></i>
-                <input type="text" id="student-search" placeholder="ابحث باسم الطالب (مثال: أحمد)..."
-                    autocomplete="off">
-            </div>
-            <div id="search-results" class="search-dropdown hidden glass"></div>
         </section>
 
         <!-- Core Recording Body (Hidden until student selected) -->
@@ -211,7 +166,14 @@
                 </button>
             </div>
 
-            <div class="filter-dashboard glass-light">
+            <div class="filter-dashboard glass-light" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div class="filter-item" style="grid-column: 1 / -1;">
+                    <label>بحث بالاسم (جميع المراحل):</label>
+                    <div class="search-box glass-light" style="padding: 10px 15px; margin-bottom: 0;">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="list-search-input" placeholder="ابحث باسم الطالب..." onkeyup="filterStudentsList()" autocomplete="off">
+                    </div>
+                </div>
                 <div class="filter-item">
                     <label>المرحلة الدراسية:</label>
                     <select id="list-filter-stage" onchange="updateYearOptions(); filterStudentsList()">
