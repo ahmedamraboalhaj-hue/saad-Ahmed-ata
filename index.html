@@ -61,12 +61,8 @@
                         <span id="current-student-level" class="badge">الصف الدراسي</span>
                     </div>
                     <div class="header-actions" style="flex-direction: row;">
-                        <button class="btn btn-gold-outline btn-sm" onclick="toggleStudentHistory()"
-                            style="margin-left: 10px;">
-                            <i class="fa-solid fa-clock-rotate-left"></i> السجل
-                        </button>
-                        <a id="send-report-btn" class="btn btn-emerald-outline" target="_blank">
-                            <i class="fa-brands fa-whatsapp"></i> تقرير
+                        <a id="send-report-btn" class="btn btn-emerald-outline" target="_blank" style="margin-right: auto;">
+                            <i class="fa-brands fa-whatsapp"></i> إرسال التقرير الأخير
                         </a>
                     </div>
                 </div>
@@ -76,15 +72,23 @@
                     <p>جوال ولي الأمر: <span id="current-guardian-phone">--</span></p>
                 </div>
 
-                <!-- History Container -->
-                <div id="student-history-container" class="history-container hidden"
-                    style="background: rgba(255,255,255,0.8); border-radius: 15px; padding: 15px; margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid rgba(2, 132, 199, 0.2);">
-                    <h4 style="color: var(--primary-blue); font-weight: bold; margin-bottom: 10px;">سجل الحضور والتسميع:
+                <!-- History Container (Always Visible) -->
+                <div id="student-history-container" class="history-container"
+                    style="background: rgba(255,255,255,0.8); border-radius: 15px; padding: 15px; margin-top: 15px; max-height: 250px; overflow-y: auto; border: 1px solid rgba(2, 132, 199, 0.2);">
+                    <h4 style="color: var(--primary-blue); font-weight: bold; margin-bottom: 10px;"><i class="fa-solid fa-box-archive"></i> أرشيف التسميع القديم:
                     </h4>
                     <div id="history-list"></div>
                 </div>
 
-                <!-- Attendance Toggle -->
+                <div style="text-align: center; margin-top: 25px;">
+                    <button id="start-report-btn" class="btn btn-gold-outline" onclick="startNewReport()" style="width: 100%;">
+                        <i class="fa-solid fa-plus"></i> إنشاء تقرير تسميع جديد
+                    </button>
+                </div>
+
+                <!-- Input Zone (Hidden until Add Report clicked) -->
+                <div id="new-report-zone" class="hidden">
+                    <!-- Attendance Toggle -->
                 <div class="attendance-toggle-container">
                     <label>حالة حضور اليوم:</label>
                     <div class="toggle-group">
@@ -145,14 +149,15 @@
                     </div>
                 </div>
 
-                <div class="action-footer">
+                <div class="action-footer" style="margin-top: 25px;">
                     <button id="save-session-btn" class="btn btn-save pulse">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> حفظ التسميع والحضور
+                        <i class="fa-solid fa-cloud-arrow-up"></i> حفظ التسميع والأرشفة
                     </button>
-                    <button id="clear-selection-btn" class="btn btn-cancel">
+                    <button id="cancel-report-btn" class="btn btn-cancel" onclick="cancelNewReport()">
                         <i class="fa-solid fa-xmark"></i> إلغاء
                     </button>
                 </div>
+                </div> <!-- End new-report-zone -->
             </div>
         </section>
         <!-- Stats Overview (Initial view) -->
