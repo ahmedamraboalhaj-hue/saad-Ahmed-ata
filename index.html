@@ -32,16 +32,16 @@
                     <p class="subtitle">جاري تحميل بيانات المكتب...</p>
                 </div>
             </div>
-                <button id="logout-btn" class="btn btn-cancel btn-sm">
-                    <i class="fa-solid fa-sign-out-alt"></i> خروج
-                </button>
-                <button id="view-students-btn" class="btn btn-secondary-outline"
-                    onclick="toggleSection('students-list-section')">
-                    <i class="fa-solid fa-users"></i> قائمة الطلاب
-                </button>
-                <button id="add-student-btn" class="btn btn-gold-outline">
-                    <i class="fa-solid fa-user-plus"></i> إضافة طالب جديد
-                </button>
+            <button id="logout-btn" class="btn btn-cancel btn-sm">
+                <i class="fa-solid fa-sign-out-alt"></i> خروج
+            </button>
+            <button id="view-students-btn" class="btn btn-secondary-outline"
+                onclick="toggleSection('students-list-section')">
+                <i class="fa-solid fa-users"></i> قائمة الطلاب
+            </button>
+            <button id="add-student-btn" class="btn btn-gold-outline">
+                <i class="fa-solid fa-user-plus"></i> إضافة طالب جديد
+            </button>
 
         </header>
 
@@ -60,9 +60,13 @@
                         <span id="current-student-gender" class="badge">ذكر</span>
                         <span id="current-student-level" class="badge">الصف الدراسي</span>
                     </div>
-                    <div class="header-actions">
+                    <div class="header-actions" style="flex-direction: row;">
+                        <button class="btn btn-gold-outline btn-sm" onclick="toggleStudentHistory()"
+                            style="margin-left: 10px;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> السجل
+                        </button>
                         <a id="send-report-btn" class="btn btn-emerald-outline" target="_blank">
-                            <i class="fa-brands fa-whatsapp"></i> إرسال تقرير للبيانات
+                            <i class="fa-brands fa-whatsapp"></i> تقرير
                         </a>
                     </div>
                 </div>
@@ -70,6 +74,14 @@
                 <div class="last-session-info">
                     <p>آخر حضور: <span id="last-session-date">01/01/2026</span></p>
                     <p>جوال ولي الأمر: <span id="current-guardian-phone">--</span></p>
+                </div>
+
+                <!-- History Container -->
+                <div id="student-history-container" class="history-container hidden"
+                    style="background: rgba(255,255,255,0.8); border-radius: 15px; padding: 15px; margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid rgba(2, 132, 199, 0.2);">
+                    <h4 style="color: var(--primary-blue); font-weight: bold; margin-bottom: 10px;">سجل الحضور والتسميع:
+                    </h4>
+                    <div id="history-list"></div>
                 </div>
 
                 <!-- Attendance Toggle -->
@@ -166,12 +178,14 @@
                 </button>
             </div>
 
-            <div class="filter-dashboard glass-light" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div class="filter-dashboard glass-light"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                 <div class="filter-item" style="grid-column: 1 / -1;">
                     <label>بحث بالاسم (جميع المراحل):</label>
                     <div class="search-box glass-light" style="padding: 10px 15px; margin-bottom: 0;">
                         <i class="fa-solid fa-search"></i>
-                        <input type="text" id="list-search-input" placeholder="ابحث باسم الطالب..." onkeyup="filterStudentsList()" autocomplete="off">
+                        <input type="text" id="list-search-input" placeholder="ابحث باسم الطالب..."
+                            onkeyup="filterStudentsList()" autocomplete="off">
                     </div>
                 </div>
                 <div class="filter-item">

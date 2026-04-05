@@ -370,6 +370,10 @@ window.selectStudent = (id) => {
     document.getElementById('current-student-gender').textContent = student.gender || 'ذكر';
     document.getElementById('current-guardian-phone').textContent = student.phone || '--';
     document.getElementById('last-session-date').textContent = student.last_session || 'لا يوجد';
+    
+    // Hide history by default when opening a student
+    const historyContainer = document.getElementById('student-history-container');
+    if(historyContainer) historyContainer.classList.add('hidden');
 
     // Set values safely
     document.getElementById('lawh-surah').value = student.lawh?.surah || student.currentSurah || "";
@@ -499,9 +503,19 @@ function saveCurrentSession() {
         attendance: currentAttendanceStatus
     };
 
+    const historyId = Date.now().toString();
+    const updatePayload = {
+        'lawh': sessionData.lawh,
+        'tathbit': sessionData.tathbit,
+        'madi': sessionData.madi,
+        'last_session': sessionData.last_session,
+        'attendance': sessionData.attendance,
+        [`history/${historyId}`]: sessionData
+    };
+
     // Update in Firebase
     const studentRef = ref(database, `students/${currentStudent.id}`);
-    update(studentRef, sessionData).then(() => {
+    update(studentRef, updatePayload).then(() => {
         const btn = document.getElementById('save-session-btn');
         const oldText = btn.innerHTML;
         btn.innerHTML = '✅ تم الحفظ';
@@ -515,3 +529,36 @@ function saveCurrentSession() {
         alert("خطأ أثناء الحفظ: " + err.message);
     });
 }
+
+window.toggleStudentHistory = () => {
+    if (!currentStudent) return;
+    const container = document.getElementById('student-history-container');
+    const list = document.getElementById('history-list');
+    
+    if (container.classList.contains('hidden')) {
+        let historyHTML = '';
+        if (currentStudent.history) {
+            const entries = Object.values(currentStudent.history).reverse(); // Newest first
+            entries.forEach(entry => {
+                const lawhText = getRangeText(entry.lawh?.surah, entry.lawh?.from, entry.lawh?.surah, entry.lawh?.to).replace('سورة undefined', '---');
+                const tStatus = entry.attendance === 'present' ? 'حضر ✅' : 'غاب ❌';
+                historyHTML += `
+                    <div style="border-bottom: 1px solid #E2E8F0; padding: 8px 0; font-size: 0.9rem;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
+                            <strong>تاريخ: ${entry.last_session} (${tStatus})</strong>
+                        </div>
+                        <div style="color: var(--text-muted);">
+                            اللوح: ${lawhText}
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            historyHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">لا يوجد سجل سابق لهذا الطالب.</p>';
+        }
+        list.innerHTML = historyHTML;
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
+};
