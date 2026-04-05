@@ -8,15 +8,16 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase
 // Your web app's Firebase configuration
 // REPLACE THESE WITH YOUR ACTUAL FIREBASE PROJECT KEYS
 const firebaseConfig = {
-    apiKey: "AIzaSyCGEHnD4MXQjWZTz5csZ8hAC72UvR1FX-U",
-    authDomain: "estebain-1906b.firebaseapp.com",
-    databaseURL: "https://estebain-1906b-default-rtdb.firebaseio.com",
-    projectId: "estebain-1906b",
-    storageBucket: "estebain-1906b.firebasestorage.app",
-    messagingSenderId: "32544885408",
-    appId: "1:32544885408:web:ad7160dca975a11d6157c5",
-    measurementId: "G-ZT4EFCQPZ7"
+    apiKey: "AIzaSyAOS3aA7JuXzBuCCZLIgu8kdbeMdCl_Ink",
+    authDomain: "classqurqin.firebaseapp.com",
+    databaseURL: "https://classqurqin-default-rtdb.firebaseio.com",
+    projectId: "classqurqin",
+    storageBucket: "classqurqin.firebasestorage.app",
+    messagingSenderId: "491693742476",
+    appId: "1:491693742476:web:d900827db8ffbd1fd95ea9",
+    measurementId: "G-Z4HE0XHNER"
 };
+
 
 
 
