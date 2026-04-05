@@ -380,14 +380,18 @@ window.selectStudent = (id) => {
             const entries = Object.values(student.history).reverse();
             entries.forEach(entry => {
                 const lawhText = getRangeText(entry.lawh?.surah, entry.lawh?.from, entry.lawh?.surah, entry.lawh?.to).replace('سورة undefined', '---');
+                const tathbitText = getRangeText(entry.tathbit?.sFrom, entry.tathbit?.aFrom, entry.tathbit?.sTo, entry.tathbit?.aTo).replace('سورة undefined', '---');
                 const tStatus = entry.attendance === 'present' ? 'حضر ✅' : 'غاب ❌';
+                const lawhGrade = entry.lawh?.grade ? ` <span style="background:#EBF8FF;color:#2B6CB0;border-radius:5px;padding:1px 6px;font-size:0.8rem;">${entry.lawh.grade}</span>` : '';
+                const tathbitGrade = entry.tathbit?.grade ? ` <span style="background:#F0FFF4;color:#276749;border-radius:5px;padding:1px 6px;font-size:0.8rem;">${entry.tathbit.grade}</span>` : '';
                 historyHTML += `
                     <div style="border-bottom: 1px solid #E2E8F0; padding: 8px 0; font-size: 0.9rem;">
                         <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
-                            <strong>تاريخ: ${entry.last_session} (${tStatus})</strong>
+                            <strong>📅 ${entry.last_session} — ${tStatus}</strong>
                         </div>
-                        <div style="color: var(--text-muted);">
-                            اللوح: ${lawhText}
+                        <div style="color: var(--text-muted); line-height: 1.8;">
+                            📖 اللوح: ${lawhText}${lawhGrade}<br>
+                            🔄 التثبيت: ${tathbitText}${tathbitGrade}
                         </div>
                     </div>
                 `;
@@ -458,6 +462,10 @@ function updateWhatsAppLink() {
                          document.getElementById('lawh-surah').value, 
                          document.getElementById('lawh-aya-to').value);
 
+        const lawhGrade = document.getElementById('lawh-grade')?.value || '';
+        const tathbitGrade = document.getElementById('tathbit-grade')?.value || '';
+        const madiGrade = document.getElementById('madi-grade')?.value || '';
+
         tathbit = getRangeText(document.getElementById('tathbit-surah-from').value,
                             document.getElementById('tathbit-aya-from').value,
                             document.getElementById('tathbit-surah-to').value,
@@ -474,6 +482,13 @@ function updateWhatsAppLink() {
         madi = "---";
     }
 
+    const lawhGradeFinal = (currentAttendanceStatus === 'present' && document.getElementById('lawh-grade')?.value) 
+        ? ` [التقييم: ${document.getElementById('lawh-grade').value}]` : '';
+    const tathbitGradeFinal = (currentAttendanceStatus === 'present' && document.getElementById('tathbit-grade')?.value) 
+        ? ` [التقييم: ${document.getElementById('tathbit-grade').value}]` : '';
+    const madiGradeFinal = (currentAttendanceStatus === 'present' && document.getElementById('madi-grade')?.value) 
+        ? ` [التقييم: ${document.getElementById('madi-grade').value}]` : '';
+
     const title = currentStudent.gender === 'أنثى' ? "للطالبة" : "للطالب";
     const statusText = currentAttendanceStatus === 'present' ? "تم الحضور" : "لم يتم الحضور (غائب)";
     
@@ -481,9 +496,9 @@ function updateWhatsAppLink() {
 تفضلوا بتقرير اليوم ${title}/ ${currentStudent.name}:
 
 📅 الحضور: ${statusText} ${attendanceIcon}
-📖 اللوح (الجديد): ${lawh}
-🔄 التثبيت: ${tathbit}
-📚 الماضي: ${madi}
+📖 اللوح (الجديد): ${lawh}${lawhGradeFinal}
+🔄 التثبيت: ${tathbit}${tathbitGradeFinal}
+📚 الماضي: ${madi}${madiGradeFinal}
 
 نأمل المتابعة والحرص جزاكم الله خيراً.`;
 
@@ -511,19 +526,22 @@ function saveCurrentSession() {
         lawh: { 
             surah: parseInt(document.getElementById('lawh-surah').value) || null, 
             from: parseInt(document.getElementById('lawh-aya-from').value) || null, 
-            to: parseInt(document.getElementById('lawh-aya-to').value) || null 
+            to: parseInt(document.getElementById('lawh-aya-to').value) || null,
+            grade: document.getElementById('lawh-grade')?.value || null
         },
         tathbit: {
             sFrom: parseInt(document.getElementById('tathbit-surah-from').value) || null,
             aFrom: parseInt(document.getElementById('tathbit-aya-from').value) || null,
             sTo: parseInt(document.getElementById('tathbit-surah-to').value) || null,
-            aTo: parseInt(document.getElementById('tathbit-aya-to').value) || null
+            aTo: parseInt(document.getElementById('tathbit-aya-to').value) || null,
+            grade: document.getElementById('tathbit-grade')?.value || null
         },
         madi: {
             sFrom: parseInt(document.getElementById('madi-surah-from').value) || null,
             aFrom: parseInt(document.getElementById('madi-aya-from').value) || null,
             sTo: parseInt(document.getElementById('madi-surah-to').value) || null,
-            aTo: parseInt(document.getElementById('madi-aya-to').value) || null
+            aTo: parseInt(document.getElementById('madi-aya-to').value) || null,
+            grade: document.getElementById('madi-grade')?.value || null
         },
         last_session: new Date().toLocaleDateString('ar-EG'),
         attendance: currentAttendanceStatus
